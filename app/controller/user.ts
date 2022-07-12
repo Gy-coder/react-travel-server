@@ -2,11 +2,19 @@ import { Controller } from "egg";
 import md5 from "md5";
 
 export default class UserController extends Controller {
+  private async jwtSign() {
+    const { ctx, app } = this;
+    const username = ctx.request.body.username;
+    const token = app.jwt.sign({ username }, app.config.jwt.secret);
+    ctx.session[username] = 1;
+    return token;
+  }
   public async register() {
     const { ctx, app } = this;
     const params = ctx.request.body;
     const user = await ctx.service.user.getUser(params.username);
     if (user) {
+      ctx.response.status = 500;
       ctx.body = {
         status: 500,
         eggMsg: "该用户已经存在",
@@ -19,14 +27,18 @@ export default class UserController extends Controller {
       createTime: ctx.helper.time(),
     });
     if (res) {
+      const token = await this.jwtSign();
+      ctx.response.status = 200;
       ctx.body = {
         status: 200,
         data: {
           ...ctx.helper.unPick(res.dataValues, ["password"]),
           createTime: ctx.helper.timestamp(res.createTime),
+          token,
         },
       };
     } else {
+      ctx.response.status = 500;
       ctx.body = {
         status: 500,
         errMsg: "注册用户失败",
@@ -38,15 +50,18 @@ export default class UserController extends Controller {
     const { username, password } = ctx.request.body;
     const user = await ctx.service.user.getUser(username, password);
     if (user) {
-      ctx.session.userId = user.id;
+      const token = await this.jwtSign();
+      ctx.response.status = 200;
       ctx.body = {
         status: 200,
         data: {
           ...ctx.helper.unPick(user.dataValues, ["password"]),
           createTime: ctx.helper.time(),
+          token,
         },
       };
     } else {
+      ctx.response.status = 500;
       ctx.body = {
         status: 500,
         errMsg: "用户名密码不匹配",
