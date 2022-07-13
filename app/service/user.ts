@@ -3,7 +3,7 @@ import md5 from "md5";
 import { User } from "../types";
 
 export default class UserService extends Service {
-  public async getUser(username: string, password?: string) {
+  public async getUser(username?: string, password?: string) {
     try {
       const { ctx, app } = this;
       const _where = password
